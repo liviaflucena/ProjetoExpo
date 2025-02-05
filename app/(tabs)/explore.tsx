@@ -1,140 +1,109 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, FlatList, Button, Modal, TextInput, TouchableOpacity, Alert, StyleSheet } from 'react-native';
-import axios from 'axios';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { StyleSheet, Image, Platform } from 'react-native';
 
-export default function App() {
-  const [repositories, setRepositories] = useState([]);
-  const [modalVisible, setModalVisible] = useState(false);
-  const [ownerId, setOwnerId] = useState('');
-  const [repoId, setRepoId] = useState('');
+import { Collapsible } from '@/components/Collapsible';
+import { ExternalLink } from '@/components/ExternalLink';
+import ParallaxScrollView from '@/components/ParallaxScrollView';
+import { ThemedText } from '@/components/ThemedText';
+import { ThemedView } from '@/components/ThemedView';
+import { IconSymbol } from '@/components/ui/IconSymbol';
 
-  // Carrega os repositórios salvos ao iniciar o app
-  useEffect(() => {
-    async function loadRepositories() {
-      try {
-        const savedData = await AsyncStorage.getItem('repositories');
-        if (savedData) {
-          setRepositories(JSON.parse(savedData));
-        }
-      } catch (error) {
-        console.error('Erro ao carregar dados', error);
-      }
-    }
-    loadRepositories();
-  }, []);
-
-  // Salva os repositórios sempre que forem atualizados
-  useEffect(() => {
-    AsyncStorage.setItem('repositories', JSON.stringify(repositories));
-  }, [repositories]);
-
-  // Função para buscar o repositório na API do GitHub
-  const fetchRepository = async () => {
-    if (!ownerId || !repoId) {
-      Alert.alert('Atenção', 'Preencha os dois campos!');
-      return;
-    }
-    try {
-      const response = await axios.get(`https://api.github.com/repos/${ownerId}/${repoId}`);
-      const repoData = response.data;
-      
-      // Aqui escolhemos 2 dados extras de sua preferência para o repositório e para o owner
-      const newRepo = {
-        id: repoData.id,
-        name: repoData.name,
-        description: repoData.description || 'Sem descrição',
-        stars: repoData.stargazers_count,        // dado 1 do repositório
-        forks: repoData.forks_count,               // dado 2 do repositório
-        owner: {
-          name: repoData.owner.login,
-          profileUrl: repoData.owner.html_url,     // dado 1 do owner
-          avatarUrl: repoData.owner.avatar_url       // dado 2 do owner
-        }
-      };
-
-      setRepositories([...repositories, newRepo]);
-      setModalVisible(false);
-      setOwnerId('');
-      setRepoId('');
-    } catch (error) {
-      Alert.alert('Erro', 'Repositório não encontrado. Verifique os dados informados.');
-      console.error('Erro ao buscar repositório:', error);
-    }
-  };
-
-  // Função para limpar todos os repositórios salvos
-  const clearRepositories = async () => {
-    setRepositories([]);
-    await AsyncStorage.removeItem('repositories');
-  };
-
+export default function TabTwoScreen() {
   return (
-    <View style={styles.container}>
-      {/* Header com botões + e - */}
-      <View style={styles.header}>
-        <Button title="+" onPress={() => setModalVisible(true)} />
-        <Button title="-" onPress={clearRepositories} />
-      </View>
-
-      {/* Modal para inserir ownerId e repoId */}
-      <Modal animationType="slide" transparent visible={modalVisible}>
-        <View style={styles.modalContainer}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Adicionar Repositório</Text>
-            <TextInput
-              placeholder="Owner ID"
-              value={ownerId}
-              onChangeText={setOwnerId}
-              style={styles.input}
-            />
-            <TextInput
-              placeholder="Repo ID"
-              value={repoId}
-              onChangeText={setRepoId}
-              style={styles.input}
-            />
-            <View style={styles.modalButtons}>
-              <TouchableOpacity style={styles.addButton} onPress={fetchRepository}>
-                <Text style={styles.buttonText}>Adicionar</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.cancelButton} onPress={() => setModalVisible(false)}>
-                <Text style={styles.buttonText}>Cancelar</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
-
-      {/* Lista de repositórios */}
-      <FlatList
-        data={repositories}
-        keyExtractor={(item) => item.id.toString()}
-        renderItem={({ item }) => (
-          <View style={styles.repoItem}>
-            <Text style={styles.repoName}>{item.name}</Text>
-            <Text>Descrição: {item.description}</Text>
-            <Text>Estrelas: {item.stars} | Forks: {item.forks}</Text>
-            <Text>Dono: {item.owner.name}</Text>
-            <Text>Perfil: {item.owner.profileUrl}</Text>
-          </View>
-        )}
-      />
-    </View>
+    <ParallaxScrollView
+      headerBackgroundColor={{ light: '#D0D0D0', dark: '#353636' }}
+      headerImage={
+        <IconSymbol
+          size={310}
+          color="#808080"
+          name="chevron.left.forwardslash.chevron.right"
+          style={styles.headerImage}
+        />
+      }>
+      <ThemedView style={styles.titleContainer}>
+        <ThemedText type="title">Explore</ThemedText>
+      </ThemedView>
+      <ThemedText>This app includes example code to help you get started.</ThemedText>
+      <Collapsible title="File-based routing">
+        <ThemedText>
+          This app has two screens:{' '}
+          <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> and{' '}
+          <ThemedText type="defaultSemiBold">app/(tabs)/explore.tsx</ThemedText>
+        </ThemedText>
+        <ThemedText>
+          The layout file in <ThemedText type="defaultSemiBold">app/(tabs)/_layout.tsx</ThemedText>{' '}
+          sets up the tab navigator.
+        </ThemedText>
+        <ExternalLink href="https://docs.expo.dev/router/introduction">
+          <ThemedText type="link">Learn more</ThemedText>
+        </ExternalLink>
+      </Collapsible>
+      <Collapsible title="Android, iOS, and web support">
+        <ThemedText>
+          You can open this project on Android, iOS, and the web. To open the web version, press{' '}
+          <ThemedText type="defaultSemiBold">w</ThemedText> in the terminal running this project.
+        </ThemedText>
+      </Collapsible>
+      <Collapsible title="Images">
+        <ThemedText>
+          For static images, you can use the <ThemedText type="defaultSemiBold">@2x</ThemedText> and{' '}
+          <ThemedText type="defaultSemiBold">@3x</ThemedText> suffixes to provide files for
+          different screen densities
+        </ThemedText>
+        <Image source={require('@/assets/images/react-logo.png')} style={{ alignSelf: 'center' }} />
+        <ExternalLink href="https://reactnative.dev/docs/images">
+          <ThemedText type="link">Learn more</ThemedText>
+        </ExternalLink>
+      </Collapsible>
+      <Collapsible title="Custom fonts">
+        <ThemedText>
+          Open <ThemedText type="defaultSemiBold">app/_layout.tsx</ThemedText> to see how to load{' '}
+          <ThemedText style={{ fontFamily: 'SpaceMono' }}>
+            custom fonts such as this one.
+          </ThemedText>
+        </ThemedText>
+        <ExternalLink href="https://docs.expo.dev/versions/latest/sdk/font">
+          <ThemedText type="link">Learn more</ThemedText>
+        </ExternalLink>
+      </Collapsible>
+      <Collapsible title="Light and dark mode components">
+        <ThemedText>
+          This template has light and dark mode support. The{' '}
+          <ThemedText type="defaultSemiBold">useColorScheme()</ThemedText> hook lets you inspect
+          what the user's current color scheme is, and so you can adjust UI colors accordingly.
+        </ThemedText>
+        <ExternalLink href="https://docs.expo.dev/develop/user-interface/color-themes/">
+          <ThemedText type="link">Learn more</ThemedText>
+        </ExternalLink>
+      </Collapsible>
+      <Collapsible title="Animations">
+        <ThemedText>
+          This template includes an example of an animated component. The{' '}
+          <ThemedText type="defaultSemiBold">components/HelloWave.tsx</ThemedText> component uses
+          the powerful <ThemedText type="defaultSemiBold">react-native-reanimated</ThemedText>{' '}
+          library to create a waving hand animation.
+        </ThemedText>
+        {Platform.select({
+          ios: (
+            <ThemedText>
+              The <ThemedText type="defaultSemiBold">components/ParallaxScrollView.tsx</ThemedText>{' '}
+              component provides a parallax effect for the header image.
+            </ThemedText>
+          ),
+        })}
+      </Collapsible>
+    </ParallaxScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, paddingTop: 50, paddingHorizontal: 20 },
-  header: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 20 },
-  modalContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.5)' },
-  modalContent: { width: 300, padding: 20, backgroundColor: 'white', borderRadius: 10 },
-  modalTitle: { fontSize: 18, marginBottom: 10, textAlign: 'center' },
-  input: { height: 40, borderColor: 'gray', borderWidth: 1, marginBottom: 10, paddingHorizontal: 10, borderRadius: 5 },
-  modalButtons: { flexDirection: 'row', justifyContent: 'space-between' },
-  addButton: { backgroundColor: 'green', padding: 10, borderRadius: 5, width: 120, alignItems: 'center' },
-  cancelButton: { backgroundColor: 'red', padding: 10, borderRadius: 5, width: 120, alignItems: 'center' },
-  buttonText: { color: 'white', fontWeight: 'bold' },
-  repoItem: { padding: 15, borderBottomWidth: 1, borderBottomColor: '#ddd' },
-  repoName: { fontSize: 18, fontWeight: 'bold' }
+  headerImage: {
+    color: '#808080',
+    bottom: -90,
+    left: -35,
+    position: 'absolute',
+  },
+  titleContainer: {
+    flexDirection: 'row',
+    gap: 8,
+  },
 });
