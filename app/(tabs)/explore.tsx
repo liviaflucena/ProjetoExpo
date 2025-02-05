@@ -1,96 +1,140 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, Button, Modal, TextInput, FlatList } from 'react-native';
+import { View, Text, FlatList, Button, Modal, TextInput, TouchableOpacity, Alert, StyleSheet } from 'react-native';
 import axios from 'axios';
-import AsyncStorage from '@react-native-async-storage/async-storage'; // Corrigido aqui!
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function App() {
-  const [repos, setRepos] = useState([]);
+  const [repositories, setRepositories] = useState([]);
   const [modalVisible, setModalVisible] = useState(false);
   const [ownerId, setOwnerId] = useState('');
   const [repoId, setRepoId] = useState('');
 
-  // Carregar repositórios salvos ao iniciar
+  // Carrega os repositórios salvos ao iniciar o app
   useEffect(() => {
-    const loadRepos = async () => {
-      const savedRepos = await AsyncStorage.getItem('repos');
-      if (savedRepos) {
-        setRepos(JSON.parse(savedRepos));
+    async function loadRepositories() {
+      try {
+        const savedData = await AsyncStorage.getItem('repositories');
+        if (savedData) {
+          setRepositories(JSON.parse(savedData));
+        }
+      } catch (error) {
+        console.error('Erro ao carregar dados', error);
       }
-    };
-
-    loadRepos();
+    }
+    loadRepositories();
   }, []);
 
-  // Função para buscar os dados do repositório
-  const fetchRepoData = async () => {
+  // Salva os repositórios sempre que forem atualizados
+  useEffect(() => {
+    AsyncStorage.setItem('repositories', JSON.stringify(repositories));
+  }, [repositories]);
+
+  // Função para buscar o repositório na API do GitHub
+  const fetchRepository = async () => {
+    if (!ownerId || !repoId) {
+      Alert.alert('Atenção', 'Preencha os dois campos!');
+      return;
+    }
     try {
       const response = await axios.get(`https://api.github.com/repos/${ownerId}/${repoId}`);
-      const { name, owner, stargazers_count, forks_count } = response.data;
-
-      const repoData = {
-        name,
-        ownerName: owner.login,
-        stargazers_count,
-        forks_count,
-        ownerId: owner.login,
+      const repoData = response.data;
+      
+      // Aqui escolhemos 2 dados extras de sua preferência para o repositório e para o owner
+      const newRepo = {
+        id: repoData.id,
+        name: repoData.name,
+        description: repoData.description || 'Sem descrição',
+        stars: repoData.stargazers_count,        // dado 1 do repositório
+        forks: repoData.forks_count,               // dado 2 do repositório
+        owner: {
+          name: repoData.owner.login,
+          profileUrl: repoData.owner.html_url,     // dado 1 do owner
+          avatarUrl: repoData.owner.avatar_url       // dado 2 do owner
+        }
       };
 
-      const updatedRepos = [...repos, repoData];
-      setRepos(updatedRepos);
-      await AsyncStorage.setItem('repos', JSON.stringify(updatedRepos));
+      setRepositories([...repositories, newRepo]);
       setModalVisible(false);
       setOwnerId('');
       setRepoId('');
     } catch (error) {
-      console.error("Erro ao buscar repositório:", error);
+      Alert.alert('Erro', 'Repositório não encontrado. Verifique os dados informados.');
+      console.error('Erro ao buscar repositório:', error);
     }
   };
 
-  // Função para limpar dados salvos
-  const clearRepos = async () => {
-    setRepos([]);
-    await AsyncStorage.removeItem('repos');
+  // Função para limpar todos os repositórios salvos
+  const clearRepositories = async () => {
+    setRepositories([]);
+    await AsyncStorage.removeItem('repositories');
   };
 
   return (
-    <View style={{ flex: 1, padding: 20 }}>
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 20 }}>
+    <View style={styles.container}>
+      {/* Header com botões + e - */}
+      <View style={styles.header}>
         <Button title="+" onPress={() => setModalVisible(true)} />
-        <Button title="-" onPress={clearRepos} />
+        <Button title="-" onPress={clearRepositories} />
       </View>
 
+      {/* Modal para inserir ownerId e repoId */}
+      <Modal animationType="slide" transparent visible={modalVisible}>
+        <View style={styles.modalContainer}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Adicionar Repositório</Text>
+            <TextInput
+              placeholder="Owner ID"
+              value={ownerId}
+              onChangeText={setOwnerId}
+              style={styles.input}
+            />
+            <TextInput
+              placeholder="Repo ID"
+              value={repoId}
+              onChangeText={setRepoId}
+              style={styles.input}
+            />
+            <View style={styles.modalButtons}>
+              <TouchableOpacity style={styles.addButton} onPress={fetchRepository}>
+                <Text style={styles.buttonText}>Adicionar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.cancelButton} onPress={() => setModalVisible(false)}>
+                <Text style={styles.buttonText}>Cancelar</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Lista de repositórios */}
       <FlatList
-        data={repos}
-        keyExtractor={(item, index) => index.toString()}  {/* Corrigido aqui */}
+        data={repositories}
+        keyExtractor={(item) => item.id.toString()}
         renderItem={({ item }) => (
-          <View style={{ marginBottom: 15 }}>
-            <Text>Repositório: {item.name}</Text>
-            <Text>Dono: {item.ownerName}</Text>
-            <Text>Estrelas: {item.stargazers_count}</Text>
-            <Text>Forks: {item.forks_count}</Text>
+          <View style={styles.repoItem}>
+            <Text style={styles.repoName}>{item.name}</Text>
+            <Text>Descrição: {item.description}</Text>
+            <Text>Estrelas: {item.stars} | Forks: {item.forks}</Text>
+            <Text>Dono: {item.owner.name}</Text>
+            <Text>Perfil: {item.owner.profileUrl}</Text>
           </View>
         )}
       />
-
-      <Modal visible={modalVisible} animationType="slide">
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 }}>
-          <Text>Adicionar Repositório</Text>
-          <TextInput
-            style={{ width: '100%', borderBottomWidth: 1, marginBottom: 10 }}
-            placeholder="Owner ID"
-            value={ownerId}
-            onChangeText={setOwnerId}
-          />
-          <TextInput
-            style={{ width: '100%', borderBottomWidth: 1, marginBottom: 20 }}
-            placeholder="Repo ID"
-            value={repoId}
-            onChangeText={setRepoId}
-          />
-          <Button title="Adicionar" onPress={fetchRepoData} />
-          <Button title="Cancelar" onPress={() => setModalVisible(false)} />
-        </View>
-      </Modal>
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: { flex: 1, paddingTop: 50, paddingHorizontal: 20 },
+  header: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 20 },
+  modalContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.5)' },
+  modalContent: { width: 300, padding: 20, backgroundColor: 'white', borderRadius: 10 },
+  modalTitle: { fontSize: 18, marginBottom: 10, textAlign: 'center' },
+  input: { height: 40, borderColor: 'gray', borderWidth: 1, marginBottom: 10, paddingHorizontal: 10, borderRadius: 5 },
+  modalButtons: { flexDirection: 'row', justifyContent: 'space-between' },
+  addButton: { backgroundColor: 'green', padding: 10, borderRadius: 5, width: 120, alignItems: 'center' },
+  cancelButton: { backgroundColor: 'red', padding: 10, borderRadius: 5, width: 120, alignItems: 'center' },
+  buttonText: { color: 'white', fontWeight: 'bold' },
+  repoItem: { padding: 15, borderBottomWidth: 1, borderBottomColor: '#ddd' },
+  repoName: { fontSize: 18, fontWeight: 'bold' }
+});
